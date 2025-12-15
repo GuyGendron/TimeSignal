@@ -2,6 +2,8 @@ function ProcessData (vibdata, filterspecs, projectid, Titreglobal, freqmax_plot
 %
 % Trying to oommit this to GIT.
 %
+% Adding comments to top of file.
+%
 global FFT_desired_Deltaf;
 global OverlapFFT;  % Check that it is smaller than 1.
 global PlotSignal;
