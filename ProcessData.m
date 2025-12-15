@@ -1,9 +1,4 @@
 function ProcessData (vibdata, filterspecs, projectid, Titreglobal, freqmax_plot_fft, Datemesures, sampling_rate, WINDOWING, titleline, nlinestitle )
-%
-% Trying to oommit this to GIT.
-%
-% Adding comments to top of file.
-%
 % This file needs to be documented fully. It does so many things.
 global FFT_desired_Deltaf;
 global OverlapFFT;  % Check that it is smaller than 1.
