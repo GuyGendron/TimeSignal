@@ -4,6 +4,7 @@ function ProcessData (vibdata, filterspecs, projectid, Titreglobal, freqmax_plot
 %
 % Adding comments to top of file.
 %
+% This file needs to be documented fully. It does so many things.
 global FFT_desired_Deltaf;
 global OverlapFFT;  % Check that it is smaller than 1.
 global PlotSignal;
