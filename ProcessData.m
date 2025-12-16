@@ -186,7 +186,7 @@ for iloc = 1:noflocations
            fprintf(fout,"\\begin\{table}\n");
            fprintf(fout,"\\begin\{tabular}{ll}\n");
      fprintf(fout,"Sampling Rate            & %d samples per s\\\\ \n",sampling_rate);
-     fprintf(fout,"Size of FFT              & %d \\\\ \n",nptsperFFT);
+     fprintf(fout,"Number of pts per FFT    & %d \\\\ \n",nptsperFFT);
      fprintf(fout,"Overlap                  & %8.1f \$ \\%% \$ \\\\ \n",OverlapFFT*100);
      fprintf(fout,"No of FFTs per signal    & %d  \\\\ \n",IntervalsFFT);
      fprintf(fout,"No of plotted FFTs       & %d  \\\\ \n",PlotOnlyNFFTs);
