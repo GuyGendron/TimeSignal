@@ -117,7 +117,15 @@ for iloc = 1:noflocations
       if (vibdata{iloc,icol+2}  != 0)
         fprintf(fout,"\\centering{Filtering: %d}\n\n",vibdata{iloc,icol+2})
         fprintf(fout,"\\centering{Order: %d}\n\n",filterspecs{vibdata{iloc,icol+2},2})
-        fprintf(fout,"\\centering{Cutoff: %8.1f Hz}\n",filterspecs{vibdata{iloc,icol+2},3})
+        fprintf(fout,"\\centering{Type       : %s}\n\n",filterspecs{vibdata{iloc,icol+2},3})
+        if (filterspecs{vibdata{iloc,icol+2},3}  == "low ")
+           fprintf(fout,"\\centering{Cutoff  : %8.1f Hz}\n",filterspecs{vibdata{iloc,icol+2},4})
+        elseif (filterspecs{vibdata{iloc,icol+2},3}  == "high")
+           fprintf(fout,"\\centering{Cutoff  : %8.1f Hz}\n",filterspecs{vibdata{iloc,icol+2},4})
+        elseif (filterspecs{vibdata{iloc,icol+2},3}  == "band")
+           fprintf(fout,"\\centering{Cutoff low  : %8.1f Hz}\n",filterspecs{vibdata{iloc,icol+2},4})
+           fprintf(fout,"\\centering{\ high : %8.1f Hz}\n",filterspecs{vibdata{iloc,icol+2},5})
+        endif
       else
         fprintf(fout,"\\centering{No filtering applied}\n")
       endif
@@ -126,8 +134,15 @@ for iloc = 1:noflocations
       signal = readsignal(vibdata{iloc,2},titleline,nlinestitle,vibdata{iloc,5},vibdata{iloc,icol});
       if (vibdata{iloc,icol+2}  != 0)
         if (filterspecs{vibdata{iloc,icol+2},1}  == 1)
-           lp_coeff = fir1(filterspecs{vibdata{iloc,icol+2},2},filterspecs{vibdata{iloc,icol+2},3}/(sampling_rate/2),'high');
-        else
+           if (filterspecs{vibdata{iloc,icol+2},3}  == "low ")
+              lp_coeff = fir1(filterspecs{vibdata{iloc,icol+2},2},filterspecs{vibdata{iloc,icol+2},4}/(sampling_rate/2), "low");
+           elseif (filterspecs{vibdata{iloc,icol+2},3}  == "high")
+              lp_coeff = fir1(filterspecs{vibdata{iloc,icol+2},2},filterspecs{vibdata{iloc,icol+2},4}/(sampling_rate/2), "high");
+           elseif (filterspecs{vibdata{iloc,icol+2},3}  == "band")
+              lp_coeff = fir1(filterspecs{vibdata{iloc,icol+2},2},[filterspecs{vibdata{iloc,icol+2},4}/(sampling_rate/2),filterspecs{vibdata{iloc,icol+2},5}/(sampling_rate/2)], ...
+                                  "bandpass");
+                                  endif
+         else
            printf("Non implemented filtering strategy = %d\n",vibdata{iloc,icol+2});
         endif
          signal = filter(lp_coeff,1,signal);
