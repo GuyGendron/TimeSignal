@@ -24,6 +24,8 @@ endfor
 dt = 1/sampling_rate;
 tvect = 0:dt:(maxlines-1)*dt;
 tvect = tvect';
+ManipSignal = zeros(maxlines,3);
+T = tvect(InfoTS{iloc,5});
 
 % Main loop on the number of locations or number of lines of InfoTS
 for iloc = 1:noflocations
@@ -34,7 +36,7 @@ for iloc = 1:noflocations
      fprintf(fout,"\\begin{itemize}\n")
      fprintf(fout,"\\item Read from file: %s\n",strrep(InfoTS{iloc,2}, "_", "\\_"));
      fprintf(fout,"\\item Number of points: %d\n",InfoTS{iloc,5})
-     fprintf(fout,"\\item Elapsed time: %10.3f \$\\rm\{s}\$\n",tvect(InfoTS{iloc,5}))
+     fprintf(fout,"\\item Elapsed time: %10.3f \$\\rm\{s}\$\n",T)
      fprintf(fout,"\\item Measured quantity: %s\n",InfoTS{iloc,3})
      fprintf(fout,"\\item Units: %s\n",InfoTS{iloc,4})
      fprintf(fout,"\\end{itemize}\n")
@@ -42,14 +44,14 @@ for iloc = 1:noflocations
 
    for idir=1:3
     icol = 0;
-    if ((idir == 1) && (InfoTS{iloc,7} == 1))
-      icol = 6;
+    if ((idir == 1) && (InfoTS{iloc,9} == 1))
+      icol = 8;
       TitleSubSection = ["XDir"];
-    elseif ((idir == 2) && (InfoTS{iloc,11} == 1))
-      icol = 10;
+    elseif ((idir == 2) && (InfoTS{iloc,13} == 1))
+      icol = 12;
       TitleSubSection = ["YDir"];
-    elseif ((idir == 3) && (InfoTS{iloc,15} == 1))
-      icol = 14;
+    elseif ((idir == 3) && (InfoTS{iloc,17} == 1))
+      icol = 16;
       TitleSubSection = ["ZDir"];
     endif
    if (icol != 0) % if icol is not 0, then direction must be processed
@@ -66,15 +68,35 @@ for iloc = 1:noflocations
       fprintf(fout,"\\end{frame}\n");
       % Read signal from file
       signal = readsignal(InfoTS{iloc,2},titleline,nlinestitle,InfoTS{iloc,5},InfoTS{iloc,icol});
+      % Scale signal
+      signal *= InfoTS{iloc,7};
 %     Various numbers required later in the code
       nptssignal = InfoTS{iloc,5};
-      ManipSignal = zeros(nptssignal,1);
       if (InfoTS{iloc,icol+2}  == 1)
         % Calculating the derivative
-        ManipSignal = gradient(signal, dt);
+        ManipSignal(:,idir) = gradient(signal, dt);
       elseif (InfoTS{iloc,icol+2}  == 2)
         % Integrating the signal
-        ManipSignal = cumtrapz(signal)*dt;
+        signal = signal - mean(signal);
+%        signal = detrend(signal,1);
+        ManipSignal(:,idir) = cumtrapz(signal)*dt;
+        % Removing mean to avoid drift.
+        ManipSignal(:,idir) = ManipSignal(:,idir) - mean(ManipSignal(:,idir));
+        %
+##        w = 2*pi * [0:(nptssignal/2-1), -nptssignal/2:-1] / T;   % symmetric frequency vector
+##        w = w';
+##        Hanning = Hanning_func(nptssignal);
+##        % One234times
+##%        lp_coeff = fir1(100,[0.5/(sampling_rate/2),10/(sampling_rate/2)], "bandpass");
+##        lp_coeff = fir1(500,[3/(sampling_rate/2),70/(sampling_rate/2)], "bandpass");
+##        signal = filter(lp_coeff,1,signal);
+##        signal = signal.*Hanning;
+##        X = fft(signal);
+##        w(1) = 1.0e-12;
+##        Y = X ./ (1j * w);
+##        ManipSignal(:,idir) = real(ifft(Y));
+##        ManipSignal(:,idir) = ManipSignal(:,idir) - mean(ManipSignal(:,idir));
+        %
       else
         fprintf(fout,"\\centering{Unknown option}\n\n")
         return;
@@ -127,7 +149,7 @@ for iloc = 1:noflocations
         ifigure++;
         % Manipulated signal
         hf = figure(ifigure);
-        plot(tvect(1:nptssignal),ManipSignal(1:nptssignal),"linewidth",1,"color","k");
+        plot(tvect(1:nptssignal),ManipSignal(1:nptssignal,idir),"linewidth",1,"color","k");
         xlabel(Titrexlabelfigsignal,'FontSize',size_of_font);
         ylabel(TitreyMS,'FontSize',size_of_font);
         grid "on";
@@ -158,14 +180,14 @@ for iloc = 1:noflocations
       istart(4) = nptssignal - nptspersubfig + 1;
       iend(4)   = nptssignal;
         figure(ifigure)
-        YrangeMin = min(signal(istart(1):iend(1)));
-        YrangeMax = max(signal(istart(1):iend(1)));
+        YrangeMin = min(ManipSignal(istart(1):iend(1),idir));
+        YrangeMax = max(ManipSignal(istart(1):iend(1),idir));
          for i = 2:nsubplots
-           tempmin = min(signal(istart(i):iend(i)));
+           tempmin = min(ManipSignal(istart(i):iend(i),idir));
            if (tempmin < YrangeMin)
             YrangeMin = tempmin;
           endif
-          tempmax = max(signal(istart(i):iend(i)));
+          tempmax = max(ManipSignal(istart(i):iend(i),idir));
           if (tempmax > YrangeMax)
             YrangeMax = tempmax;
             endif
@@ -173,12 +195,12 @@ for iloc = 1:noflocations
          Xrange = 1.1*(tvect(iend(1)) - tvect(istart(1))); % increase timespan by 10%
         for i = 1:nsubplots
            subplot(rowsubplots,columnsubplots,i);
-           plot(tvect(istart(i):iend(i)),signal(istart(i):iend(i)),"linewidth",1,"color","k");
+           plot(tvect(istart(i):iend(i)),ManipSignal(istart(i):iend(i),idir),"linewidth",1,"color","k");
            ylim([YrangeMin YrangeMax]);                       % Set y-axis range
            xlim([tvect(istart(i)) tvect(istart(i))+Xrange]);  % Set x-axis range
            grid "on";
            xlabel(Titrexlabelfigsignal,'FontSize',size_of_font);
-           ylabel(Titrey,'FontSize',size_of_font);
+           ylabel(TitreyMS,'FontSize',size_of_font);
         endfor
         ifigure++;
         filename = [InfoTS{iloc,1} TitleSubSection "subsignals.tex"];
@@ -195,7 +217,7 @@ for iloc = 1:noflocations
         metricssignal = zeros(nsubsignalsmetrics+1,4);
         for i = 1:nsubsignalsmetrics
           subsignal = zeros(nptsmetrics,1);
-          subsignal = signal((i-1)*nptsmetrics+1:i*nptsmetrics);
+          subsignal = ManipSignal((i-1)*nptsmetrics+1:i*nptsmetrics,idir);
           %      Average             Max                  Min               RMS
            [metricssignal(i,1), metricssignal(i,2), metricssignal(i,3), metricssignal(i,4)] = ...
            metrics_signal(subsignal,0,0);
@@ -210,7 +232,7 @@ for iloc = 1:noflocations
            plot(metricssignal(1:nsubsignalsmetrics,1),'bo', metricssignal(1:nsubsignalsmetrics,2),'g*', ...
            metricssignal(1:nsubsignalsmetrics,3),'ks',metricssignal(1:nsubsignalsmetrics,4),'ro');
            xlabel("Sample",'FontSize',size_of_font);
-           ylabel(Titrey,'FontSize',size_of_font);
+           ylabel(TitreyMS,'FontSize',size_of_font);
            set(gca, 'xtick', 1:1:nsubsignalsmetrics);
            grid "on";
            legend("Average","Max","Min","RMS","location", "northeastoutside");
@@ -240,6 +262,12 @@ for iloc = 1:noflocations
         fprintf(fout,"\\end{frame}\n");
       endif % if (PrintMetrics != 0)
      endif % Processing X, Y or Z column of data
+     fid = fopen(InfoTS{iloc,6}, 'w');   % open file for writing
+     for i = 1:size(ManipSignal,1)
+       stringtoprint = sprintf('%e %e %e %e\n', tvect(i), ManipSignal(i,1), ManipSignal(i,2), ManipSignal(i,3));
+       fprintf(fid,stringtoprint);
+     end
+     fclose(fid);
    endfor % Number of directions
 endfor % Number of locations
 fprintf(fout,"\\end{document}\n");
