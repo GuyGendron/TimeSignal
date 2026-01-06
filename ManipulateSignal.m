@@ -1,4 +1,4 @@
-function ManipulateSignal (InfoTS, projectid, Titreglobal, Datemesures, sampling_rate,titleline, nlinestitle )
+function ManipulateSignal (InfoTS, filterspecs, projectid, Titreglobal, Datemesures, sampling_rate,titleline, nlinestitle )
 % This file needs to be documented fully. It does so many things.
 global PlotSignal;
 global PlotSubsignals;
@@ -15,11 +15,12 @@ fout = fopen(resultfile,"w");
 printtopresultfile(fout,Titreglobal,Datemesures);
 noflocations = size(InfoTS)(1); % Number of locations; must match number of lines of array InfoTS
 maxlines = 0;
-for iloc = 1:noflocations
-   InfoTS{iloc,5} =   Nlinesfile(InfoTS{iloc,2},titleline, nlinestitle);
-   if (maxlines < InfoTS{iloc,5})
-     maxlines = InfoTS{iloc,5};
-     endif;
+% We assume all files have the same number of lines. The number of lines of the first file.
+InfoTS{1,5} =   Nlinesfile(InfoTS{1,2},titleline, nlinestitle);
+maxlines = InfoTS{1,5};
+
+for iloc = 2:noflocations
+   InfoTS{iloc,5} = maxlines;
 endfor
 dt = 1/sampling_rate;
 tvect = 0:dt:(maxlines-1)*dt;
@@ -39,19 +40,38 @@ for iloc = 1:noflocations
      fprintf(fout,"\\item Elapsed time: %10.3f \$\\rm\{s}\$\n",T)
      fprintf(fout,"\\item Measured quantity: %s\n",InfoTS{iloc,3})
      fprintf(fout,"\\item Units: %s\n",InfoTS{iloc,4})
+      if (InfoTS{iloc,8}  != 0)
+        fprintf(fout,"\\item Filtering: %d\n\n",InfoTS{iloc,8})
+        fprintf(fout,"\\begin{itemize}\n")
+        fprintf(fout,"\\item Order: %d\n\n",filterspecs{InfoTS{iloc,8},2})
+        fprintf(fout,"\\item Type       : %s\n\n",filterspecs{InfoTS{iloc,8},3})
+        if (filterspecs{InfoTS{iloc,8},3}  == "low ")
+           fprintf(fout,"\\item Cutoff  : %8.1f Hz\n",filterspecs{InfoTS{iloc,8},4})
+           fprintf(fout,"\\end{itemize}\n")
+        elseif (filterspecs{InfoTS{iloc,8},3}  == "high")
+           fprintf(fout,"\\item Cutoff  : %8.1f Hz\n",filterspecs{InfoTS{iloc,8},4})
+           fprintf(fout,"\\end{itemize}\n")
+        elseif (filterspecs{InfoTS{iloc,8},3}  == "band")
+           fprintf(fout,"\\item Cutoff low  : %8.1f Hz\n",filterspecs{InfoTS{iloc,8},4})
+           fprintf(fout,"\\item high : %8.1f Hz\n",filterspecs{InfoTS{iloc,8},5})
+           fprintf(fout,"\\end{itemize}\n")
+        endif
+      else
+        fprintf(fout,"\\item No filtering applied\n")
+      endif
      fprintf(fout,"\\end{itemize}\n")
    fprintf(fout,"\\end{frame}\n");
 
    for idir=1:3
     icol = 0;
-    if ((idir == 1) && (InfoTS{iloc,9} == 1))
-      icol = 8;
+    if ((idir == 1) && (InfoTS{iloc,10} == 1))
+      icol = 9;
       TitleSubSection = ["XDir"];
-    elseif ((idir == 2) && (InfoTS{iloc,13} == 1))
-      icol = 12;
+    elseif ((idir == 2) && (InfoTS{iloc,14} == 1))
+      icol = 13;
       TitleSubSection = ["YDir"];
-    elseif ((idir == 3) && (InfoTS{iloc,17} == 1))
-      icol = 16;
+    elseif ((idir == 3) && (InfoTS{iloc,18} == 1))
+      icol = 17;
       TitleSubSection = ["ZDir"];
     endif
    if (icol != 0) % if icol is not 0, then direction must be processed
@@ -70,6 +90,23 @@ for iloc = 1:noflocations
       signal = readsignal(InfoTS{iloc,2},titleline,nlinestitle,InfoTS{iloc,5},InfoTS{iloc,icol});
       % Scale signal
       signal *= InfoTS{iloc,7};
+      % Filter signal
+      if (InfoTS{iloc,8}  != 0)
+        if (filterspecs{InfoTS{iloc,8},1}  == 1)
+           if (filterspecs{InfoTS{iloc,8},3}  == "low ")
+              lp_coeff = fir1(filterspecs{InfoTS{iloc,8},2},filterspecs{InfoTS{iloc,8},4}/(sampling_rate/2), "low");
+           elseif (filterspecs{InfoTS{iloc,8},3}  == "high")
+              lp_coeff = fir1(filterspecs{InfoTS{iloc,icol+2},2},filterspecs{InfoTS{iloc,8},4}/(sampling_rate/2), "high");
+           elseif (filterspecs{InfoTS{iloc,8},3}  == "band")
+              lp_coeff = fir1(filterspecs{InfoTS{iloc,8},2},[filterspecs{InfoTS{iloc,8},4}/(sampling_rate/2),filterspecs{InfoTS{iloc,8},5}/(sampling_rate/2)], ...
+                                  "bandpass");
+           endif
+         else
+           printf("Non implemented filtering strategy = %d\n",InfoTS{iloc,8});
+           return;
+        endif
+        signal = filter(lp_coeff,1,signal);
+      endif
 %     Various numbers required later in the code
       nptssignal = InfoTS{iloc,5};
       if (InfoTS{iloc,icol+2}  == 1)
