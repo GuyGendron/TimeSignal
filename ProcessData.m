@@ -207,7 +207,9 @@ for iloc = 1:noflocations
      fprintf(fout,"No of plotted FFTs       & %d  \\\\ \n",PlotOnlyNFFTs);
      fprintf(fout,"Number of spectral lines & %d \\\\ \n",nptsperFFT/2);
      fprintf(fout,"Frequency resolution     & %10.3f Hz \\\\ \n",sampling_rate/nptsperFFT);
-     if (WINDOWING ==1)
+     if ( WINDOWING>0 && WINDOWING<=1 )
+       fprintf(fout,"Window                 & Flat top - alpha = %8.2f \\\\ \n", WINDOWING);
+     elseif (WINDOWING ==2)
        fprintf(fout,"Window                 & Hanning \\\\ \n");
      else
        fprintf(fout,"Unwindowed signal      & \\\\ \n");
@@ -355,10 +357,13 @@ for iloc = 1:noflocations
               jFFTPrint++;
               signalFFT = zeros(nptsperFFT,1);
               signalFFT = signal(is_ie(iFFT,1):is_ie(iFFT,2));
-              if (WINDOWING == 1)
+              if ( WINDOWING > 0 && WINDOWING <= 1 )
+                FlatTop = tukeywin(nptsperFFT, WINDOWING);
+                signalFFT = signalFFT.*FlatTop;
+              elseif (WINDOWING == 2)
                   Hanning = Hanning_func(nptsperFFT);
                   signalFFT = signalFFT.*Hanning;
-               endif;
+               endif
                df = sampling_rate/nptsperFFT;
                freqs_fft = [0 : df: (sampling_rate/2-df)];
                fft_RI = 2/nptsperFFT.*fft(signalFFT,nptsperFFT,1);

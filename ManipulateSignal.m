@@ -6,6 +6,10 @@ global CalculateMetrics;
 global PrintMetrics;
 global PlotMetrics;
 
+if ( (PrintMetrics == 1) || (PlotMetrics == 1))
+  CalculateMetrics = 1;
+  endif
+
 ifigure=1;
 size_of_font = 18;
 Titrexlabelfigsignal = "Temps (s)";
@@ -15,7 +19,7 @@ fout = fopen(resultfile,"w");
 printtopresultfile(fout,Titreglobal,Datemesures);
 noflocations = size(InfoTS)(1); % Number of locations; must match number of lines of array InfoTS
 maxlines = 0;
-% We assume all files have the same number of lines. The number of lines of the first file.
+% We assume all files have the same number of lines and same period. The number of lines of the first file.
 InfoTS{1,5} =   Nlinesfile(InfoTS{1,2},titleline, nlinestitle);
 maxlines = InfoTS{1,5};
 
@@ -25,8 +29,8 @@ endfor
 dt = 1/sampling_rate;
 tvect = 0:dt:(maxlines-1)*dt;
 tvect = tvect';
+T = tvect(InfoTS{1,5});
 ManipSignal = zeros(maxlines,3);
-T = tvect(InfoTS{iloc,5});
 
 % Main loop on the number of locations or number of lines of InfoTS
 for iloc = 1:noflocations
@@ -43,6 +47,9 @@ for iloc = 1:noflocations
       if (InfoTS{iloc,8}  != 0)
         fprintf(fout,"\\item Filtering: %d\n\n",InfoTS{iloc,8})
         fprintf(fout,"\\begin{itemize}\n")
+        if (InfoTS{iloc,8}  == 2)
+            fprintf(fout,"\\item Butterworth\n\n")
+        endif
         fprintf(fout,"\\item Order: %d\n\n",filterspecs{InfoTS{iloc,8},2})
         fprintf(fout,"\\item Type       : %s\n\n",filterspecs{InfoTS{iloc,8},3})
         if (filterspecs{InfoTS{iloc,8},3}  == "low ")
@@ -90,6 +97,10 @@ for iloc = 1:noflocations
       signal = readsignal(InfoTS{iloc,2},titleline,nlinestitle,InfoTS{iloc,5},InfoTS{iloc,icol});
       % Scale signal
       signal *= InfoTS{iloc,7};
+      % Always remove mean of signal before doing anything.
+      signal = signal - mean(signal);
+      nptssignal = InfoTS{iloc,5};
+%      signalpadded = zeros(3*nptssignal,1);
       % Filter signal
       if (InfoTS{iloc,8}  != 0)
         if (filterspecs{InfoTS{iloc,8},1}  == 1)
@@ -101,44 +112,53 @@ for iloc = 1:noflocations
               lp_coeff = fir1(filterspecs{InfoTS{iloc,8},2},[filterspecs{InfoTS{iloc,8},4}/(sampling_rate/2),filterspecs{InfoTS{iloc,8},5}/(sampling_rate/2)], ...
                                   "bandpass");
            endif
-         else
+%          signalpadded = [signal; signal; signal];
+%           signalpadded = filter(lp_coeff,1,signalpadded);
+           signal = filter(lp_coeff,1,signal);
+       elseif (filterspecs{InfoTS{iloc,8},1}  == 2)
+           if (filterspecs{InfoTS{iloc,8},3}  == "low ")
+              [b,a] = butter(filterspecs{InfoTS{iloc,8},2},filterspecs{InfoTS{iloc,8},4}/(sampling_rate/2), "low");
+           elseif (filterspecs{InfoTS{iloc,8},3}  == "high")
+              [b,a] = butter(filterspecs{InfoTS{iloc,icol+2},2},filterspecs{InfoTS{iloc,8},4}/(sampling_rate/2), "high");
+           elseif (filterspecs{InfoTS{iloc,8},3}  == "band")
+              [b,a] = butter(filterspecs{InfoTS{iloc,8},2},[filterspecs{InfoTS{iloc,8},4}/(sampling_rate/2),filterspecs{InfoTS{iloc,8},5}/(sampling_rate/2)], ...
+                                  "bandpass");
+           endif
+%           signalpadded = [signal; signal; signal];
+%           signalpadded = filter(b,a,signalpadded);
+           signal = filter(b,a,signal);
+        else
            printf("Non implemented filtering strategy = %d\n",InfoTS{iloc,8});
            return;
         endif
-        signal = filter(lp_coeff,1,signal);
+%        signal = signalpadded((nptssignal+1):2*nptssignal);
       endif
 %     Various numbers required later in the code
-      nptssignal = InfoTS{iloc,5};
       if (InfoTS{iloc,icol+2}  == 1)
         % Calculating the derivative
         ManipSignal(:,idir) = gradient(signal, dt);
       elseif (InfoTS{iloc,icol+2}  == 2)
-        % Integrating the signal
-        signal = signal - mean(signal);
-%        signal = detrend(signal,1);
-        ManipSignal(:,idir) = cumtrapz(signal)*dt;
-        % Removing mean to avoid drift.
+       % Integrating the signal in the time domain
+         ManipSignal(:,idir) = cumtrapz(signal)*dt;
+         ManipSignal(:,idir) = detrend(ManipSignal(:,idir),1);
+      elseif (InfoTS{iloc,icol+2}  == 3)
+       % Integrating the signal in the frequency signal
+        signal = detrend(signal,1);
+        w = 2*pi * [0:(nptssignal/2-1), -nptssignal/2:-1] / T;   % symmetric frequency vector
+        w = w';
+        flattop = tukeywin(nptssignal, 0.2);
+        signal = signal.*flattop;
+        X = fft(signal);
+        w(1) = 1.0e-12;
+        Y = X ./ (1j * w);
+        ManipSignal(:,idir) = real(ifft(Y));
         ManipSignal(:,idir) = ManipSignal(:,idir) - mean(ManipSignal(:,idir));
-        %
-##        w = 2*pi * [0:(nptssignal/2-1), -nptssignal/2:-1] / T;   % symmetric frequency vector
-##        w = w';
-##        Hanning = Hanning_func(nptssignal);
-##        % One234times
-##%        lp_coeff = fir1(100,[0.5/(sampling_rate/2),10/(sampling_rate/2)], "bandpass");
-##        lp_coeff = fir1(500,[3/(sampling_rate/2),70/(sampling_rate/2)], "bandpass");
-##        signal = filter(lp_coeff,1,signal);
-##        signal = signal.*Hanning;
-##        X = fft(signal);
-##        w(1) = 1.0e-12;
-##        Y = X ./ (1j * w);
-##        ManipSignal(:,idir) = real(ifft(Y));
-##        ManipSignal(:,idir) = ManipSignal(:,idir) - mean(ManipSignal(:,idir));
         %
       else
         fprintf(fout,"\\centering{Unknown option}\n\n")
         return;
       endif
-      initial_metrics_subplots = 250;
+      initial_metrics_subplots = sampling_rate;
       if ((PrintMetrics != 0) || (PlotMetrics != 0))
         nsubsignalsmetrics = floor(nptssignal/initial_metrics_subplots);
         if (nsubsignalsmetrics == 0)
@@ -297,6 +317,11 @@ for iloc = 1:noflocations
            fprintf(fout,"\\end\{tabular}\n");
            fprintf(fout,"\\end\{table}\n");
         fprintf(fout,"\\end{frame}\n");
+        printf("Metrics of manipulated signal:\n");
+        printf("\t Average: %10.3e\n",metricssignal(nsubsignalsmetrics+1,1));
+        printf("\t Maximum: %10.3e\n",metricssignal(nsubsignalsmetrics+1,2));
+        printf("\t Minimum: %10.3e\n",metricssignal(nsubsignalsmetrics+1,3));
+        printf("\t RMS:     %10.3e\n",metricssignal(nsubsignalsmetrics+1,4));
       endif % if (PrintMetrics != 0)
      endif % Processing X, Y or Z column of data
      fid = fopen(InfoTS{iloc,6}, 'w');   % open file for writing
