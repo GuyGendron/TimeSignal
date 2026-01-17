@@ -529,10 +529,30 @@ for iloc = 1:noflocations
          ifigure++;
          filename = [vibdata{iloc,1} TitleSubSection "PSD.tex"];
          print(filename,'-dtex');
-               fprintf(fout,"\\begin{frame}{PSD - Units: (%s)$^2/$ Hz\}\n",vibdata{iloc,4});
-                   fprintf(fout,"\\begin\{figure\}[H]\n");
+         fprintf(fout,"\\begin{frame}{PSD - Units: (%s)$^2/$ Hz\}\n",vibdata{iloc,4});
+         fprintf(fout,"\\begin\{figure\}[H]\n");
+         fprintf(fout,"\\centering\n");
+         fprintf(fout,"\\scalebox\{0.7\}\{\\input\{%s\}\}\n",filename);
+         fprintf(fout,"\\end\{figure\}\n");
+         fprintf(fout,"\\end{frame}\n");
+           %    Spectogram
+          window = hanning(nptssignal/4);         % analysis window
+          noverlap = OverlapFFT*nptssignal/4;                % overlap between windows
+          specgram(signal, nptssignal/4, sampling_rate, window, noverlap);
+%          specgram(signal, nptsperFFT/2, sampling_rate);
+          colorbar;
+          title("Spectrogram");
+          xlabel("Time (s)");
+          ylabel("Frequency (Hz)");
+          ylim([0 freqmax_plot_fft]);
+
+         ifigure++;
+         filename = [vibdata{iloc,1} TitleSubSection "SPGM.tex"];
+         print(filename,'-dtex');
+         fprintf(fout,"\\begin{frame}{Spectogram\}\n");
+         fprintf(fout,"\\begin\{figure\}[H]\n");
                    fprintf(fout,"\\centering\n");
-                   fprintf(fout,"\\scalebox\{0.7\}\{\\input\{%s\}\}\n",filename);
+                   fprintf(fout,"\\scalebox\{0.5\}\{\\input\{%s\}\}\n",filename);
                    fprintf(fout,"\\end\{figure\}\n");
                fprintf(fout,"\\end{frame}\n");
        endif % Processing X, Y or Z column of data
