@@ -20,6 +20,7 @@ global cutoffFFT_Plot; % Only FFT components above cutoffFFT_Plot are plotted.
 global cutoffFFT_Print; % Only FFT components above cutoffFFT_Print are printed.
 global OverlapFFT;
 global PlotOnlyNFFTs;
+global VISIBLE;
 % sampling_rate must be an even number
 % To do:
 %
@@ -72,32 +73,21 @@ Nresultfile = ["report" projectid ".tek"]; % tex file is copied to tek file so t
 fout = fopen(resultfile,"w");
 printtopresultfile(fout,Titreglobal,Datemesures);
 noflocations = size(vibdata)(1); % Number of locations; must match number of lines of array vibdata
-maxlines = 0;
-for iloc = 1:noflocations
-   vibdata{iloc,5} =   Nlinesfile(vibdata{iloc,2},titleline, nlinestitle);
-   if (maxlines < vibdata{iloc,5})
-     maxlines = vibdata{iloc,5};
-     endif;
-endfor
-tvect = 0:(1/sampling_rate):(maxlines-1)/sampling_rate;
-tvect = tvect';
 
 % Main loop on the number of locations or number of lines of vibdata
 for iloc = 1:noflocations
-   % Loop on direction
    TitleSection = [vibdata{iloc,1}];
    fprintf(fout,"\\section{%s}\n",TitleSection);
    fprintf(fout,"\\begin{frame}{%s}\n",TitleSection);
-     fprintf(fout,"\\begin{itemize}\n")
-     fprintf(fout,"\\item Read from file: %s\n",strrep(vibdata{iloc,2}, "_", "\\_"));
-     fprintf(fout,"\\item Number of points: %d\n",vibdata{iloc,5})
-     fprintf(fout,"\\item Elapsed time: %10.3f \$\\rm\{s}\$\n",tvect(vibdata{iloc,5}))
-     fprintf(fout,"\\item Measured quantity: %s\n",vibdata{iloc,3})
-     fprintf(fout,"\\item Units: %s\n",vibdata{iloc,4})
-     fprintf(fout,"\\end{itemize}\n")
+   fprintf(fout,"\\begin{itemize}\n")
+   fprintf(fout,"\\item Read from file: %s\n",strrep(vibdata{iloc,2}, "_", "\\_"));
+   fprintf(fout,"\\item Measured quantity: %s\n",vibdata{iloc,3})
+   fprintf(fout,"\\item Units: %s\n",vibdata{iloc,4})
+   fprintf(fout,"\\end{itemize}\n")
    fprintf(fout,"\\end{frame}\n");
 
    for idir=1:3
+   % Loop on direction
     icol = 0;
     if ((idir == 1) && (vibdata{iloc,7} == 1))
       icol = 6;
@@ -111,9 +101,17 @@ for iloc = 1:noflocations
       TitleSubSection = ["ZDir"];
     endif
    if (icol != 0) % if icol is not 0, then direction must be processed
+      % Read signal from file
+      signal = readsignal(vibdata{iloc,2},titleline,nlinestitle,vibdata{iloc,icol});
+      nptssignal       = length(signal);
+      vibdata{iloc,5}  = nptssignal;
+      tvect = 0:(1/sampling_rate):(nptssignal-1)/sampling_rate;
+      tvect = tvect';
       fprintf(fout,"\\subsection{%s}\n",TitleSubSection);
       fprintf(fout,"\\begin{frame}\n");
       fprintf(fout,"\\centering{%s}\n\n",TitleSubSection);
+      fprintf(fout,"Number of points: %d\n\n",vibdata{iloc,5})
+      fprintf(fout,"Elapsed time: %10.3f \$\\rm\{s}\$\n\n",nptssignal/sampling_rate)
       if (vibdata{iloc,icol+2}  != 0)
         fprintf(fout,"\\centering{Filtering: %d}\n\n",vibdata{iloc,icol+2})
         fprintf(fout,"\\centering{Order: %d}\n\n",filterspecs{vibdata{iloc,icol+2},2})
@@ -130,8 +128,6 @@ for iloc = 1:noflocations
         fprintf(fout,"\\centering{No filtering applied}\n")
       endif
       fprintf(fout,"\\end{frame}\n");
-      % Read signal from file
-      signal = readsignal(vibdata{iloc,2},titleline,nlinestitle,vibdata{iloc,5},vibdata{iloc,icol});
       if (vibdata{iloc,icol+2}  != 0)
         if (filterspecs{vibdata{iloc,icol+2},1}  == 1)
            if (filterspecs{vibdata{iloc,icol+2},3}  == "low ")
@@ -148,7 +144,6 @@ for iloc = 1:noflocations
          signal = filter(lp_coeff,1,signal);
       endif
 % Various numbers required later in the code
-    nptssignal = vibdata{iloc,5};
     initial_metrics_subplots = 250;
     if ((PrintMetrics != 0) || (PlotMetrics != 0))
       nsubsignalsmetrics = floor(nptssignal/initial_metrics_subplots);
@@ -224,7 +219,7 @@ for iloc = 1:noflocations
     Titrey = [vibdata{iloc,3} " (" vibdata{iloc,4} ")"];
 %
       if (PlotSignal != 0)
-        hf = figure(ifigure);
+        hf = figure(ifigure,"visible",VISIBLE);
         plot(tvect(1:nptssignal),signal(1:nptssignal),"linewidth",1,"color","k");
         xlabel(Titrexlabelfigsignal,'FontSize',size_of_font);
         ylabel(Titrey,'FontSize',size_of_font);
@@ -255,7 +250,7 @@ for iloc = 1:noflocations
       iend(3)   = twothirds + nptspersubfig/2 - 1;
       istart(4) = nptssignal - nptspersubfig + 1;
       iend(4)   = nptssignal;
-        figure(ifigure)
+        figure(ifigure,"visible",VISIBLE)
         YrangeMin = min(signal(istart(1):iend(1)));
         YrangeMax = max(signal(istart(1):iend(1)));
          for i = 2:nsubplots
@@ -290,28 +285,31 @@ for iloc = 1:noflocations
       endif % if (PlotSubsignals != 0)
 % Metrics
       if (CalculateMetrics != 0)
-        metricssignal = zeros(nsubsignalsmetrics+1,4);
+        metricssignal = zeros(nsubsignalsmetrics+1,6);
         for i = 1:nsubsignalsmetrics
           subsignal = zeros(nptsmetrics,1);
           subsignal = signal((i-1)*nptsmetrics+1:i*nptsmetrics);
           %      Average             Max                  Min               RMS
-           [metricssignal(i,1), metricssignal(i,2), metricssignal(i,3), metricssignal(i,4)] = ...
+           [metricssignal(i,1), metricssignal(i,2), metricssignal(i,3), metricssignal(i,4), metricssignal(i,5), metricssignal(i,6)] = ...
            metrics_signal(subsignal,0,0);
         endfor
         metricssignal(nsubsignalsmetrics+1,1) = mean(metricssignal(1:nsubsignalsmetrics,1));
         metricssignal(nsubsignalsmetrics+1,2) = mean(metricssignal(1:nsubsignalsmetrics,2));
         metricssignal(nsubsignalsmetrics+1,3) = mean(metricssignal(1:nsubsignalsmetrics,3));
         metricssignal(nsubsignalsmetrics+1,4) = mean(metricssignal(1:nsubsignalsmetrics,4));
+        metricssignal(nsubsignalsmetrics+1,5) = mean(metricssignal(1:nsubsignalsmetrics,5));
+        metricssignal(nsubsignalsmetrics+1,6) = mean(metricssignal(1:nsubsignalsmetrics,6));
       endif
       if (PlotMetrics != 0)
-           hf = figure(ifigure);
+           hf = figure(ifigure,"visible",VISIBLE);
            plot(metricssignal(1:nsubsignalsmetrics,1),'bo', metricssignal(1:nsubsignalsmetrics,2),'g*', ...
-           metricssignal(1:nsubsignalsmetrics,3),'ks',metricssignal(1:nsubsignalsmetrics,4),'ro');
+           metricssignal(1:nsubsignalsmetrics,3),'ks',metricssignal(1:nsubsignalsmetrics,4),'ro', ...
+           metricssignal(1:nsubsignalsmetrics,5),'bo',metricssignal(1:nsubsignalsmetrics,6),'k*');
            xlabel("Sample",'FontSize',size_of_font);
            ylabel(Titrey,'FontSize',size_of_font);
            set(gca, 'xtick', 1:1:nsubsignalsmetrics);
            grid "on";
-           legend("Average","Max","Min","RMS","location", "northeastoutside");
+           legend("Average","Max","Min","RMS","Kurtosis","Skewness","location", "northeastoutside");
            filename = [vibdata{iloc,1} TitleSubSection "metrics.tex"];
            print(filename,'-dtex');
         fprintf(fout,"\\begin{frame}{Metrics - %d subsignals of %d points}\n",nsubsignalsmetrics,nptsmetrics );
@@ -325,13 +323,16 @@ for iloc = 1:noflocations
       if (PrintMetrics != 0)
         fprintf(fout,"\\begin{frame}{Metrics - %d subsignals of %d points}\n",nsubsignalsmetrics,nptsmetrics );
            fprintf(fout,"\\begin\{table}\n");
-           fprintf(fout,"\\begin\{tabular}{|l | l | l | l | l |}\n");
+           fprintf(fout,"\\begin{tabular}{|l | l | l | l | l |}\n");
            fprintf(fout,"\\hline\n");
-           fprintf(fout," & Average & Max & Min & RMS \\\\ \n");
+           fprintf(fout," & Average & Max & Min & RMS  \\\\ \n");
            fprintf(fout,"\\hline\n");
-           fprintf(fout,"\\hline\n");
-           fprintf(fout,"%s & %10.3e & %10.3e & %10.3e & %10.3e \\\\ \n","Ave", metricssignal(nsubsignalsmetrics+1,1), metricssignal(nsubsignalsmetrics+1,2), ...
+           fprintf(fout,"%s & %8.3e & %8.3e & %8.3e & %8.3e  \\\\ \n","Ave", metricssignal(nsubsignalsmetrics+1,1), metricssignal(nsubsignalsmetrics+1,2), ...
                metricssignal(nsubsignalsmetrics+1,3),metricssignal(nsubsignalsmetrics+1,4));
+           fprintf(fout,"\\hline\n");
+           fprintf(fout,"\\hline\n");
+           fprintf(fout," &  Kurtosis & Skewness & & \\\\ \n");
+           fprintf(fout,"%s & %8.3e & %8.3e &  &  \\\\ \n","Ave", metricssignal(nsubsignalsmetrics+1,5),metricssignal(nsubsignalsmetrics+1,6));
            fprintf(fout,"\\hline\n");
            fprintf(fout,"\\end\{tabular}\n");
            fprintf(fout,"\\end\{table}\n");
@@ -404,7 +405,7 @@ for iloc = 1:noflocations
                [sortfft_2,ifft2print] = sort(freqs2print(1:noffreqs2print),1,"ascend");
              if (PlotFFTs != 0)
     %            Plotting magnitude
-                 figure(ifigure);
+                 figure(ifigure,"visible",VISIBLE);
                  stem(freqs2plot(1:noffreqs2plot),maxfftcomps(1:noffreqs2plot),"o", "color","k", ...
                     "linewidth",2,"markersize",9, "markeredgecolor","k");
                  grid "on";
@@ -488,7 +489,7 @@ for iloc = 1:noflocations
                      endif % if (noffreqs2plot >= 6)
         % Plotting phase
                 if (PlotFFTsPhase != 0)
-                   figure(ifigure);
+                   figure(ifigure,"visible",VISIBLE);
                    stem(freqs_fft(ifft(1:noffreqs2plot)),phasemaxfftcomps(1:noffreqs2plot),"o", "color","k", ...
                       "linewidth",2,"markersize",9, "markeredgecolor","k");
                    grid "on";
@@ -519,7 +520,7 @@ for iloc = 1:noflocations
          % PSD
          %
          [Pxx,f] = pwelch(signal, nptsperFFT, OverlapFFT, nptsperFFT, sampling_rate, 'half', 'plot');
-         figure(ifigure);
+         figure(ifigure,"visible",VISIBLE);
          loglog(f,Pxx);
          MaxFreqPWelch = power(10,(floor(log10(freqmax_plot_fft))+1));
          xlim([1 MaxFreqPWelch]);
@@ -538,6 +539,7 @@ for iloc = 1:noflocations
            %    Spectogram
           window = hanning(nptssignal/4);         % analysis window
           noverlap = OverlapFFT*nptssignal/4;                % overlap between windows
+          figure(ifigure,"visible",VISIBLE);
           specgram(signal, nptssignal/4, sampling_rate, window, noverlap);
 %          specgram(signal, nptsperFFT/2, sampling_rate);
           colorbar;
@@ -551,10 +553,10 @@ for iloc = 1:noflocations
          print(filename,'-dtex');
          fprintf(fout,"\\begin{frame}{Spectogram\}\n");
          fprintf(fout,"\\begin\{figure\}[H]\n");
-                   fprintf(fout,"\\centering\n");
-                   fprintf(fout,"\\scalebox\{0.5\}\{\\input\{%s\}\}\n",filename);
-                   fprintf(fout,"\\end\{figure\}\n");
-               fprintf(fout,"\\end{frame}\n");
+         fprintf(fout,"\\centering\n");
+         fprintf(fout,"\\scalebox\{0.5\}\{\\input\{%s\}\}\n",filename);
+         fprintf(fout,"\\end\{figure\}\n");
+         fprintf(fout,"\\end{frame}\n");
        endif % Processing X, Y or Z column of data
    endfor % Number of directions
 endfor % Number of locations
