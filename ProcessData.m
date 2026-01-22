@@ -430,8 +430,46 @@ for iloc = 1:noflocations
                      fprintf(fout,"\\centering\n");
                      fprintf(fout,"\\scalebox\{0.55\}\{\\input\{%s\}\}\n",filename);
                      fprintf(fout,"\\end\{figure\}\n");
-                 fprintf(fout,"\\end{frame}\n");
-                     if (noffreqs2print >= 6)
+                     fprintf(fout,"\\end{frame}\n");
+                     if (noffreqs2print < 6)
+                        % Sorted by magnitude: high to low
+                       fprintf(fout,"\\begin{frame}{FFT - Magn. - Interval %d (N pts = %d, %d to %d)}\n",iFFT, nptsperFFT,is_ie(iFFT,1),is_ie(iFFT,2));
+                       fprintf(fout,"\\fontsize{9pt}{10pt}\\selectfont\n");
+                       fprintf(fout,"Number of components = %d (Threshold: %5.1f \$ \\%% \$ of Max) - Printed: %d\n",...
+                                        noffreqs2print, cutoffFFT_Print*100,noffreqs2print);
+                       fprintf(fout,"\n\\bigskip\n\n");
+                       fprintf(fout,"Sorted by decreasing magnitude:\n");
+                       fprintf(fout,"\n\\medskip\n\n");
+                       fprintf(fout,"\\hrule\n");
+                       fprintf(fout,"\\vspace{0.5em}\n");
+                       fprintf(fout,"\\qquad\\quad "); % On décale pour imprimer le mot Freq. sous cette ligne de valeurs
+                       for i=1:noffreqs2print
+                            fprintf(fout,"%10.1e \\quad", maxfftcomps_Print(i));
+                       endfor
+                       fprintf(fout,"\n\n");
+                       fprintf(fout,"Freq.\\,\\,");
+                      for i=1:noffreqs2print
+                           fprintf(fout,"%10.1e \\quad", freqs2print(i));
+                       endfor
+                       fprintf(fout,"\\hrule\n");
+                       fprintf(fout,"\n\\bigskip\n\n");
+                       % sorted by frequency; low to high;
+                       fprintf(fout,"Sorted by increasing frequency:\n\n");
+                       fprintf(fout,"\n\\medskip\n\n");
+                       fprintf(fout,"\\hrule\n");
+                       fprintf(fout,"\\vspace{0.5em}\n");
+                       fprintf(fout,"\\qquad\\quad "); % On décale pour imprimer le mot Freq. sous cette ligne de valeurs
+                       for i=1:noffreqs2print
+                           fprintf(fout,"%10.1e \\quad", maxfftcomps_Print(ifft2print(i)));
+                       endfor
+                       fprintf(fout,"\n\n");
+                       fprintf(fout,"Freq.\\,\\,");
+                      for i=1:noffreqs2print
+                           fprintf(fout,"%10.1e \\quad", freqs2print(i));
+                       endfor
+                       fprintf(fout,"\\hrule\n");
+                       fprintf(fout,"\\end{frame}\n\n");
+                    elseif (noffreqs2print >= 6)
                        nlinestablefreqs = floor(noffreqs2print/6);
                        if (nlinestablefreqs > 7 )
                          nlinestablefreqs = 7;

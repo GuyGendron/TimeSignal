@@ -120,14 +120,14 @@ for iloc = 1:noflocations
            if (filterspecs{InfoTS{iloc,8},3}  == "low ")
               [b,a] = butter(filterspecs{InfoTS{iloc,8},2},filterspecs{InfoTS{iloc,8},4}/(sampling_rate/2), "low");
            elseif (filterspecs{InfoTS{iloc,8},3}  == "high")
-              [b,a] = butter(filterspecs{InfoTS{iloc,icol+2},2},filterspecs{InfoTS{iloc,8},4}/(sampling_rate/2), "high");
+              [b,a] = butter(filterspecs{InfoTS{iloc,8},2},filterspecs{InfoTS{iloc,8},4}/(sampling_rate/2), "high");
            elseif (filterspecs{InfoTS{iloc,8},3}  == "band")
               [b,a] = butter(filterspecs{InfoTS{iloc,8},2},[filterspecs{InfoTS{iloc,8},4}/(sampling_rate/2),filterspecs{InfoTS{iloc,8},5}/(sampling_rate/2)], ...
                                   "bandpass");
            endif
 %           signalpadded = [signal; signal; signal];
 %           signalpadded = filter(b,a,signalpadded);
-           signal = filter(b,a,signal);
+           signal = filtfilt(b,a,signal);
         else
            printf("Non implemented filtering strategy = %d\n",InfoTS{iloc,8});
            return;
