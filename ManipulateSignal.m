@@ -34,7 +34,9 @@ for iloc = 1:noflocations
       if (InfoTS{iloc,8}  != 0)
         fprintf(fout,"\\item Filtering: %d\n\n",InfoTS{iloc,8})
         fprintf(fout,"\\begin{itemize}\n")
-        if (InfoTS{iloc,8}  == 2)
+        if (filterspecs{InfoTS{iloc,8},1}  == 1)
+            fprintf(fout,"\\item FIR1\n\n")
+        elseif (filterspecs{InfoTS{iloc,8},1}  == 2)
             fprintf(fout,"\\item Butterworth\n\n")
         endif
         fprintf(fout,"\\item Order: %d\n\n",filterspecs{InfoTS{iloc,8},2})
@@ -116,7 +118,7 @@ for iloc = 1:noflocations
 %          signalpadded = [signal; signal; signal];
 %           signalpadded = filter(lp_coeff,1,signalpadded);
            signal = filter(lp_coeff,1,signal);
-       elseif (filterspecs{InfoTS{iloc,8},1}  == 2)
+       elseif (filterspecs{InfoTS{iloc,8},1}  == 2) % Butterworth
            if (filterspecs{InfoTS{iloc,8},3}  == "low ")
               [b,a] = butter(filterspecs{InfoTS{iloc,8},2},filterspecs{InfoTS{iloc,8},4}/(sampling_rate/2), "low");
            elseif (filterspecs{InfoTS{iloc,8},3}  == "high")
